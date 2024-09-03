@@ -1,7 +1,7 @@
 # satori-balance-checker
 satori批量余额检查脚本
 **当前脚本只能查询同一个IP上部署的服务**
-**配合Z大的批量安装脚本使用**
+**配合Z大的批量安装脚本使用 [地址](https://medium.com/@zephyrsailor0715/satori多节点管理-优化部署-提升效率-c1d62fa5c00c)**
 
 # 使用方式
 ## Install the dependencies
