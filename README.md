@@ -4,16 +4,21 @@ satori批量余额检查脚本
 **配合Z大的批量安装脚本使用 [地址](https://medium.com/@zephyrsailor0715/satori多节点管理-优化部署-提升效率-c1d62fa5c00c)**
 
 # 使用方式
-## Install the dependencies
+## 安装依赖
 ```shell
 git clone https://github.com/CCCCCCoder/satori-balance-checker.git
 cd satori-balance-checker
 pip install -r requirements.txt
 ```
-## Run the script
+## 批量查询余额
 ```
 python3 check.py
 ```
+## 批量修改归集地址
+```
+python3 SetRewardAddress.py
+```
+
 
 # 配置文件说明
 ```ini
@@ -23,6 +28,7 @@ start_port = 24601 #起始端口号
 num_ports = 10 #节点数
 password_consistent = true #是否统一密码，如果所有节点的密码一致，则这里填true
 password = password # 密码
+rewardAddress = ETjntxxxxxxxxxxxxxxxxxxxxxxxxxx #归集地址
 
 [passwords]
 24601 = password # 当不是统一密码时，在这里填入每个端口号对应的密码
