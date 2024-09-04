@@ -1,7 +1,9 @@
-import requests
 import configparser
-from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urlparse, parse_qs
+
+import requests
+from bs4 import BeautifulSoup
 
 # Read configuration
 config = configparser.RawConfigParser()
@@ -150,12 +152,9 @@ def extract_balance(html_content):
             continue
     return balance
 
-# Loop through a range of port numbers and make requests
-total_balance = 0
-print('Starting balance extraction process...')
-for i in range(num_ports):
-    port = start_port + i
-    print(f'正在查询第 {i+1} 个端口 {port}')
+
+# Worker function to process a single port
+def process_port(port):
     try:
         if password_consistent:
             password = default_password
@@ -167,8 +166,18 @@ for i in range(num_ports):
         balance = extract_balance(html_content)
         if balance is not None:
             print(f'【Balance from {ip}:{port}: {balance}】')
-            total_balance += balance
+            return balance
     except Exception as e:
         print(f'Error processing {ip}:{port} - {e}')
+    return 0
+
+
+# Main script to use threading for processing ports
+total_balance = 0
+print('Starting balance extraction process...')
+with ThreadPoolExecutor(max_workers=10) as executor:
+    futures = [executor.submit(process_port, start_port + i) for i in range(num_ports)]
+    for future in futures:
+        total_balance += future.result()
 
 print(f'Total Balance: {total_balance}')
