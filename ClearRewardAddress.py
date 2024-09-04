@@ -1,9 +1,9 @@
-import configparser
-from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urlparse, parse_qs
-
 import requests
+import configparser
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse, parse_qs
+from concurrent.futures import ThreadPoolExecutor
+
 
 # Read configuration
 config = configparser.RawConfigParser()
@@ -13,6 +13,7 @@ start_port = config.getint('server', 'start_port')
 num_ports = config.getint('server', 'num_ports')
 password_consistent = config.getboolean('server', 'password_consistent')
 default_password = config.get('server', 'password', fallback=None)
+reward_address = config.get('server', 'rewardAddress', fallback=None)
 
 # Define headers
 headers = {
@@ -121,7 +122,7 @@ def unlock_request(ip, port, next_param):
         raise ValueError(f'Unexpected status code after unlock: {response.status_code}')
 
 # Function to make a POST request to the /vault endpoint
-def post_to_vault(ip, port, csrf_token, cookies, password):
+def post_to_vault(ip, port, csrf_token, cookies, password, reward_address):
     url = f'http://{ip}:{port}/vault'
     headers.update({
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -137,6 +138,12 @@ def post_to_vault(ip, port, csrf_token, cookies, password):
     print(f'Making POST request to {url}')
     response = requests.post(url, headers=headers, data=data, verify=False)
     print('POST request completed')
+    # Call the new function to mine to address
+
+    html_content = response.content
+    soup = BeautifulSoup(html_content, 'html.parser')
+    reward_address_self = soup.find('div', {'id': 'walletAddress'}).text.strip()
+    mine_to_address(ip, port, cookies, reward_address_self)
     return response.content
 
 # Function to extract balance from the HTML response
@@ -152,9 +159,22 @@ def extract_balance(html_content):
             continue
     return balance
 
+def mine_to_address(ip, port, cookies, reward_address):
+    url = f'http://{ip}:{port}/mine/to/address/{reward_address}'
+    mine_headers = headers.copy()
+    mine_headers.update({
+        'Accept': '*/*',
+        'Referer': f'http://{ip}:{port}/vault',
+        'Cookie': f'session={cookies["session"]}'
+    })
+    print(f'Making request to {url}')
+    response = requests.get(url, headers=mine_headers, verify=False)
+    print(f'[config reward address] port {port} result: {response.content}')
+    return response.content
 
-# Worker function to process a single port
+# Loop through a range of port numbers and make requests
 def process_port(port):
+    print(f'正在查询端口 {port}')
     try:
         if password_consistent:
             password = default_password
@@ -162,22 +182,20 @@ def process_port(port):
             password = config.get('passwords', str(port), fallback=default_password)
         print(f'Processing {ip}:{port} with password: {password}')
         csrf_token, cookies = make_request(ip, port)
-        html_content = post_to_vault(ip, port, csrf_token, cookies, password)
-        balance = extract_balance(html_content)
-        if balance is not None:
-            print(f'【Balance from {ip}:{port}: {balance}】')
-            return balance
+
+        html_content = post_to_vault(ip, port, csrf_token, cookies, password, reward_address)
+        # balance = extract_balance(html_content)
+        # if balance is not None:
+        #     print(f'【Balance from {ip}:{port}: {balance}】')
+        #     total_balance += balance
+        return port
     except Exception as e:
         print(f'Error processing {ip}:{port} - {e}')
-    return 0
 
-
-# Main script to use threading for processing ports
-total_balance = 0
 print('Starting balance extraction process...')
 with ThreadPoolExecutor(max_workers=10) as executor:
     futures = [executor.submit(process_port, start_port + i) for i in range(num_ports)]
     for future in futures:
-        total_balance += future.result()
+        port = future.result()
 
-print(f'Total Balance: {total_balance}')
+print(f'批量修改奖励地址完成')
