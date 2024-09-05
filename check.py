@@ -166,18 +166,25 @@ def process_port(port):
         balance = extract_balance(html_content)
         if balance is not None:
             print(f'【Balance from {ip}:{port}: {balance}】')
-            return balance
+            return port, balance
     except Exception as e:
         print(f'Error processing {ip}:{port} - {e}')
-    return 0
+    return port, 0
 
 
 # Main script to use threading for processing ports
 total_balance = 0
+balances = []
 print('Starting balance extraction process...')
 with ThreadPoolExecutor(max_workers=10) as executor:
     futures = [executor.submit(process_port, start_port + i) for i in range(num_ports)]
     for future in futures:
-        total_balance += future.result()
+        port, balance = future.result()
+        balances.append((port, balance))
+        total_balance += balance
+
+print('Balances from each port:')
+for port, balance in balances:
+    print(f'Port {port}: Balance {balance}')
 
 print(f'Total Balance: {total_balance}')
